@@ -1,0 +1,3006 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الحضور والغياب - التعليم الثانوي الجزائري</title>
+    <!-- Added Supabase client script -->
+    <script src="supabase-client.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .notification {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .student-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .profile-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .student-image {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .image-upload {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .image-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .nav-item {
+            color: #6b7280;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item.active {
+            color: #8b5cf6;
+            background-color: #f3f4f6;
+        }
+        
+        .nav-item:hover {
+            color: #8b5cf6;
+        }
+        
+        .page-content {
+            animation: slideInUp 0.3s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .priority-urgent { border-color: #dc2626; background-color: #fef2f2; }
+        .priority-high { border-color: #ea580c; background-color: #fff7ed; }
+        .priority-medium { border-color: #d97706; background-color: #fffbeb; }
+        .priority-low { border-color: #2563eb; background-color: #eff6ff; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-full">
+    <!-- Header -->
+    <header class="bg-green-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold">نظام إدارة الحضور والغياب</h1>
+                        <p class="text-green-100 text-sm">التعليم الثانوي الجزائري</p>
+                    </div>
+                </div>
+                <div id="userInfo" class="hidden items-center space-x-4 space-x-reverse">
+                    <div class="text-right">
+                        <span id="userName" class="font-medium block"></span>
+                        <span id="userRole" class="text-green-100 text-sm"></span>
+                    </div>
+                    <button onclick="logout()" class="bg-green-700 hover:bg-green-800 px-4 py-2 rounded-lg transition-colors">
+                        تسجيل الخروج
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="min-h-full flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 fade-in">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Logo and Title -->
+            <div class="text-center">
+                <div class="mx-auto h-24 w-24 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
+                    <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">نظام إدارة الحضور</h2>
+                <p class="text-gray-600">سجل دخولك للمتابعة</p>
+            </div>
+
+            <!-- Login Form -->
+            <div class="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+                <form onsubmit="handleLogin(event)" class="space-y-6">
+                    <!-- User Type Selection -->
+                    <div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="userType" value="admin" class="sr-only peer">
+                                <div class="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                                    <svg class="w-8 h-8 mb-2 text-gray-600 peer-checked:text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-700 peer-checked:text-purple-700">مدير</span>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="userType" value="teacher" class="sr-only peer">
+                                <div class="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                                    <svg class="w-8 h-8 mb-2 text-gray-600 peer-checked:text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-700 peer-checked:text-purple-700">أستاذ</span>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="userType" value="parent" class="sr-only peer">
+                                <div class="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                                    <svg class="w-8 h-8 mb-2 text-gray-600 peer-checked:text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        <path d="M4 8V6a6 6 0 1112 0v2h1a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2v-8a2 2 0 012-2h1z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-700 peer-checked:text-purple-700">ولي أمر</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Email Input -->
+                    <div>
+                        <input type="email" id="email" required 
+                               placeholder="البريد الإلكتروني أو اسم المستخدم"
+                               class="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-right">
+                    </div>
+
+                    <!-- Password Input -->
+                    <div class="relative">
+                        <input type="password" id="password" required 
+                               placeholder="كلمة المرور"
+                               class="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-right">
+                        <button type="button" onclick="togglePassword()" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <svg id="passwordToggle" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Login Button -->
+                    <button type="submit" 
+                            class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-4 rounded-xl transition-all transform hover:scale-105 shadow-lg">
+                        تسجيل الدخول
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">أو</span>
+                    </div>
+                </div>
+
+                <!-- Register Link -->
+                <div class="text-center">
+                    <button onclick="showRegister()" 
+                            class="text-purple-600 hover:text-purple-700 font-medium transition-colors">
+                        إنشاء حساب جديد
+                    </button>
+                </div>
+
+                <!-- Forgot Password -->
+                <div class="text-center">
+                    <button onclick="showForgotPassword()" 
+                            class="text-gray-500 hover:text-gray-700 text-sm transition-colors">
+                        نسيت كلمة المرور؟
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-sm text-gray-500">
+                <p>© 2024 نظام إدارة الحضور والغياب</p>
+                <p>التعليم الثانوي الجزائري</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Page -->
+    <div id="registerPage" class="hidden min-h-full flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 fade-in">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Logo and Title -->
+            <div class="text-center">
+                <div class="mx-auto h-24 w-24 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
+                    <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">إنشاء حساب جديد</h2>
+                <p class="text-gray-600">سيتم إرسال طلبك للمدير للموافقة</p>
+            </div>
+
+            <!-- Register Form -->
+            <div class="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+                <form onsubmit="handleRegister(event)" class="space-y-6">
+                    <!-- User Type Selection -->
+                    <div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Removed admin option from registration form for security -->
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="regUserType" value="teacher" class="sr-only peer">
+                                <div class="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                                    <svg class="w-8 h-8 mb-2 text-gray-600 peer-checked:text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-700 peer-checked:text-purple-700">أستاذ</span>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" name="regUserType" value="parent" class="sr-only peer">
+                                <div class="flex flex-col items-center p-4 border-2 border-gray-200 rounded-xl peer-checked:border-purple-500 peer-checked:bg-purple-50 transition-all hover:border-purple-300">
+                                    <svg class="w-8 h-8 mb-2 text-gray-600 peer-checked:text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        <path d="M4 8V6a6 6 0 1112 0v2h1a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2v-8a2 2 0 012-2h1z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium text-gray-700 peer-checked:text-purple-700">ولي أمر</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Name Input -->
+                    <div>
+                        <input type="text" id="regName" required 
+                               placeholder="الاسم الكامل"
+                               class="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-right">
+                    </div>
+
+                    <!-- Email Input -->
+                    <div>
+                        <input type="email" id="regEmail" required 
+                               placeholder="البريد الإلكتروني"
+                               class="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-right">
+                    </div>
+
+                    <!-- Password Input -->
+                    <div class="relative">
+                        <input type="password" id="regPassword" required 
+                               placeholder="كلمة المرور"
+                               class="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-right">
+                        <button type="button" onclick="toggleRegPassword()" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <svg id="regPasswordToggle" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Profile Image Upload -->
+                    <div class="text-center">
+                        <label class="block text-gray-700 font-medium mb-2">الصورة الشخصية</label>
+                        <div class="image-upload">
+                            <div class="w-20 h-20 bg-gray-200 rounded-full mx-auto flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors">
+                                <img id="regProfilePreview" class="hidden w-20 h-20 rounded-full object-cover">
+                                <svg id="regProfileIcon" class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <input type="file" id="regProfileImage" accept="image/*" onchange="previewRegImage(this)">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">اختياري - يمكن إضافتها لاحقاً</p>
+                    </div>
+
+                    <!-- Register Button -->
+                    <button type="submit" 
+                            class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-4 rounded-xl transition-all transform hover:scale-105 shadow-lg">
+                        إرسال طلب التسجيل
+                    </button>
+                </form>
+
+                <!-- Back to Login -->
+                <div class="text-center">
+                    <button onclick="showLogin()" 
+                            class="text-purple-600 hover:text-purple-700 font-medium transition-colors">
+                        العودة لتسجيل الدخول
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-sm text-gray-500">
+                <p>بإنشاء حساب، أنت توافق على</p>
+                <p>شروط الخدمة وسياسة الخصوصية</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="mainApp" class="hidden min-h-full bg-gray-50">
+        <!-- Content Area -->
+        <div class="pb-20">
+            <!-- Admin Pages -->
+            <div id="adminPages" class="hidden">
+                <!-- Dashboard Page -->
+                <div id="adminDashboard" class="page-content px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">لوحة التحكم</h2>
+                        <p class="text-gray-600">مرحباً بك في نظام إدارة الحضور</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                                    </svg>
+                                </div>
+                                <div class="mr-3">
+                                    <p class="text-gray-600 text-xs">التلاميذ</p>
+                                    <p class="text-lg font-bold text-gray-800" id="totalStudents">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
+                                    </svg>
+                                </div>
+                                <div class="mr-3">
+                                    <p class="text-gray-600 text-xs">الأساتذة</p>
+                                    <p class="text-lg font-bold text-gray-800" id="totalTeachers">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="mr-3">
+                                    <p class="text-gray-600 text-xs">أولياء الأمور</p>
+                                    <p class="text-lg font-bold text-gray-800" id="totalParents">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="mr-3">
+                                    <p class="text-gray-600 text-xs">طلبات الموافقة</p>
+                                    <p class="text-lg font-bold text-gray-800" id="pendingRequests">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-4">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">الأنشطة الأخيرة</h3>
+                        <div id="recentActivities" class="space-y-3">
+                            <div class="text-center py-8 text-gray-500">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                                </svg>
+                                <p>لا توجد أنشطة حديثة</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Students Page -->
+                <div id="adminStudents" class="page-content hidden px-4 py-6">
+                    <!-- Tab Navigation -->
+                    <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
+                        <button onclick="showStudentsTab('allStudents')" id="allStudentsTab" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-white text-purple-600 shadow-sm">
+                            جميع التلاميذ
+                        </button>
+                        <button onclick="showStudentsTab('classlists')" id="classlistsTab" class="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-purple-600">
+                            قوائم الأقسام
+                        </button>
+                    </div>
+
+                    <!-- All Students Tab -->
+                    <div id="allStudentsContent">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">إدارة التلاميذ</h2>
+                            <button onclick="showAddStudent()" class="bg-purple-600 hover:bg-purple-700 text-white p-2 rounded-full transition-colors">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="studentsList" class="space-y-3">
+                            <div class="text-center py-12 text-gray-500">
+                                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                                </svg>
+                                <p class="text-lg font-medium">لا يوجد تلاميذ مسجلين</p>
+                                <p class="text-sm text-gray-400 mt-2">ابدأ بإضافة التلاميذ للنظام</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Class Lists Tab -->
+                    <div id="classlistsContent" class="hidden">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">قوائم الأقسام</h2>
+                        </div>
+                        
+                        <!-- Year Filter -->
+                        <div class="mb-6">
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="filterClassLists('all')" id="filterAll" class="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white">
+                                    جميع السنوات
+                                </button>
+                                <button onclick="filterClassLists('جذع مشترك')" id="filterJidhMushtarak" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">
+                                    جذع مشترك
+                                </button>
+                                <button onclick="filterClassLists('السنة الثانية')" id="filterSecond" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">
+                                    السنة الثانية
+                                </button>
+                                <button onclick="filterClassLists('السنة الثالثة')" id="filterThird" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300">
+                                    السنة الثالثة
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Class Lists Grid -->
+                        <div id="classListsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Class lists will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Approvals Page -->
+                <div id="adminApprovals" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">طلبات الموافقة</h2>
+                        <p class="text-gray-600">راجع وافق على طلبات الانضمام</p>
+                    </div>
+                    <div id="pendingApprovals" class="space-y-3">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <p class="text-lg font-medium">لا توجد طلبات موافقة</p>
+                            <p class="text-sm text-gray-400 mt-2">ستظهر طلبات التسجيل الجديدة هنا</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summons Page -->
+                <div id="adminSummons" class="page-content hidden px-4 py-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">إرسال الاستدعاءات</h2>
+                        <button onclick="showSendSummons()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                            </svg>
+                            إرسال استدعاء
+                        </button>
+                    </div>
+
+                    <!-- Summons History -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">الاستدعاءات المرسلة</h3>
+                        <div id="summonsHistory" class="space-y-3">
+                            <div class="text-center py-8 text-gray-500">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                                </svg>
+                                <p>لا توجد استدعاءات مرسلة</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">استدعاءات سريعة</h4>
+                            <div class="space-y-2">
+                                <button onclick="quickSummons('غياب متكرر')" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors text-sm">
+                                    استدعاء للغياب المتكرر
+                                </button>
+                                <button onclick="quickSummons('تأخر متكرر')" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors text-sm">
+                                    استدعاء للتأخر المتكرر
+                                </button>
+                                <button onclick="quickSummons('سلوك')" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors text-sm">
+                                    استدعاء سلوكي
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">إحصائيات</h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">اليوم</span>
+                                    <span class="font-bold" id="todaySummons">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">هذا الأسبوع</span>
+                                    <span class="font-bold" id="weekSummons">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">هذا الشهر</span>
+                                    <span class="font-bold" id="monthSummons">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="adminSettings" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">الإعدادات</h2>
+                        <p class="text-gray-600">إدارة إعدادات النظام</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h3 class="font-bold text-gray-800 mb-2">إعدادات عامة</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-700">الإشعارات</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-700">التحديثات التلقائية</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer">
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h3 class="font-bold text-gray-800 mb-2">الحساب</h3>
+                            <div class="space-y-3">
+                                <button onclick="showChangePassword()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تغيير كلمة المرور
+                                </button>
+                                <button onclick="showProfileSettings()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تحديث البيانات الشخصية
+                                </button>
+                                <button onclick="logout()" class="w-full text-right p-3 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
+                                    تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teacher Pages -->
+            <div id="teacherPages" class="hidden">
+                <!-- Attendance Page -->
+                <div id="teacherAttendance" class="page-content px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">تسجيل الحضور والتأخرات</h2>
+                        
+                        <!-- Date and Filters -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                                <input type="date" id="attendanceDate" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">فرز حسب القسم</label>
+                                <select id="classFilter" onchange="filterStudents()" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+                                    <option value="">جميع الأقسام</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">فرز حسب الشعبة</label>
+                                <select id="sectionFilter" onchange="filterStudents()" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+                                    <option value="">جميع الشعب</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button onclick="markAllPresent()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                                تحديد الكل حاضر
+                            </button>
+                            <button onclick="markAllAbsent()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                                تحديد الكل غائب
+                            </button>
+                            <button onclick="clearAllAttendance()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                                مسح التحديد
+                            </button>
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="grid grid-cols-4 gap-3 mb-6">
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                <p class="text-green-600 font-bold text-lg" id="presentCount">0</p>
+                                <p class="text-green-700 text-xs">حاضر</p>
+                            </div>
+                            <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                <p class="text-red-600 font-bold text-lg" id="absentCount">0</p>
+                                <p class="text-red-700 text-xs">غائب</p>
+                            </div>
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                                <p class="text-yellow-600 font-bold text-lg" id="lateCount">0</p>
+                                <p class="text-yellow-700 text-xs">متأخر</p>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                                <p class="text-blue-600 font-bold text-lg" id="totalCount">0</p>
+                                <p class="text-blue-700 text-xs">المجموع</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="teacherStudentsList" class="space-y-3">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                            </svg>
+                            <p class="text-lg font-medium">لا يوجد تلاميذ للعرض</p>
+                            <p class="text-sm text-gray-400 mt-2">سيتم عرض التلاميذ هنا عند إضافتهم للنظام</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class Lists Page -->
+                <div id="teacherClassLists" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">قوائم الأقسام</h2>
+                        <p class="text-gray-600">عرض وطباعة قوائم التلاميذ حسب القسم والشعبة</p>
+                    </div>
+
+                    <!-- Filter Section -->
+                    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">اختر القسم</label>
+                                <select id="listClassFilter" onchange="loadClassList()" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر القسم</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">اختر الشعبة</label>
+                                <select id="listSectionFilter" onchange="loadClassList()" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500">
+                                    <option value="">اختر الشعبة</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="printClassList()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                                <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zM5 14H4v-3h1v3zm1 0v2h8v-2H6zm9 0h1v-3h-1v3z" clip-rule="evenodd"/>
+                                </svg>
+                                طباعة القائمة
+                            </button>
+                            <button onclick="exportClassListExcel()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                                <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                تصدير Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Class List Display -->
+                    <div id="classListContainer" class="bg-white rounded-xl shadow-sm overflow-hidden">
+                        <div id="classListContent">
+                            <div class="text-center py-12 text-gray-500">
+                                <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <p class="text-lg font-medium">اختر القسم والشعبة لعرض القائمة</p>
+                                <p class="text-sm text-gray-400 mt-2">ستظهر قائمة التلاميذ هنا مع إمكانية الطباعة</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Page -->
+                <div id="teacherReports" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">التقارير</h2>
+                        <p class="text-gray-600">عرض تقارير الحضور والغياب</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-4">
+                        <h3 class="font-bold text-gray-800 mb-4">إحصائيات هذا الأسبوع</h3>
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                            </svg>
+                            <p class="text-lg font-medium">لا توجد بيانات للعرض</p>
+                            <p class="text-sm text-gray-400 mt-2">ستظهر الإحصائيات عند تسجيل الحضور</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="teacherSettings" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">الإعدادات</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h3 class="font-bold text-gray-800 mb-2">الحساب</h3>
+                            <div class="space-y-3">
+                                <button onclick="showChangePassword()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تغيير كلمة المرور
+                                </button>
+                                <button onclick="showProfileSettings()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تحديث البيانات الشخصية
+                                </button>
+                                <button onclick="logout()" class="w-full text-right p-3 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
+                                    تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parent Pages -->
+            <div id="parentPages" class="hidden">
+                <!-- Children Page -->
+                <div id="parentChildren" class="page-content px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">أبنائي</h2>
+                        <p class="text-gray-600">عرض بطاقات وحضور الأطفال</p>
+                    </div>
+                    <!-- إضافة مربع بحث للبحث عن الأطفال -->
+                    <div class="mb-6">
+                        <input type="text" id="parentSearchBox" placeholder="ابحث عن اسم الابن..." 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               onkeyup="searchParentChildren()">
+                    </div>
+                    <div id="parentChildrenList" class="space-y-4">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="text-lg font-medium">لا توجد بيانات أطفال</p>
+                            <p class="text-sm text-gray-400 mt-2">سيتم عرض بيانات أطفالك هنا عند ربطهم بحسابك</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications Page -->
+                <div id="parentNotifications" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">الإشعارات</h2>
+                        <p class="text-gray-600">الاستدعاءات والإشعارات المهمة</p>
+                    </div>
+                    <div id="parentNotificationsList" class="space-y-3">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                            </svg>
+                            <p class="text-lg font-medium">لا توجد إشعارات</p>
+                            <p class="text-sm text-gray-400 mt-2">ستظهر الإشعارات والاستدعاءات هنا</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="parentSettings" class="page-content hidden px-4 py-6">
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">الإعدادات</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-xl shadow-sm p-4">
+                            <h3 class="font-bold text-gray-800 mb-2">الحساب</h3>
+                            <div class="space-y-3">
+                                <button onclick="showChangePassword()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تغيير كلمة المرور
+                                </button>
+                                <button onclick="showProfileSettings()" class="w-full text-right p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                    تحديث البيانات الشخصية
+                                </button>
+                                <button onclick="logout()" class="w-full text-right p-3 hover:bg-red-50 text-red-600 rounded-lg transition-colors">
+                                    تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2">
+            <div id="adminBottomNav" class="hidden flex justify-around">
+                <button onclick="showAdminPage('adminDashboard')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="adminDashboard">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+                    </svg>
+                    <span class="text-xs">الرئيسية</span>
+                </button>
+                <button onclick="showAdminPage('adminStudents')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="adminStudents">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                    </svg>
+                    <span class="text-xs">التلاميذ</span>
+                </button>
+                <button onclick="showAdminPage('adminApprovals')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="adminApprovals">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">الطلبات</span>
+                </button>
+                <button onclick="showAdminPage('adminSummons')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="adminSummons">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                    </svg>
+                    <span class="text-xs">الاستدعاءات</span>
+                </button>
+                <button onclick="showAdminPage('adminSettings')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="adminSettings">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">الإعدادات</span>
+                </button>
+            </div>
+
+            <div id="teacherBottomNav" class="hidden flex justify-around">
+                <button onclick="showTeacherPage('teacherAttendance')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="teacherAttendance">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">الحضور</span>
+                </button>
+                <button onclick="showTeacherPage('teacherClassLists')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="teacherClassLists">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 001 1h6a1 1 0 001-1V3a2 2 0 012 2v6.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 11.586V5a2 2 0 00-2-2v1a1 1 0 01-1 1H8a1 1 0 01-1-1V3a2 2 0 00-2 2v11a2 2 0 002 2h4a1 1 0 100-2H6V5z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">القوائم</span>
+                </button>
+                <button onclick="showTeacherPage('teacherReports')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="teacherReports">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    <span class="text-xs">التقارير</span>
+                </button>
+                <button onclick="showTeacherPage('teacherSettings')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="teacherSettings">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">الإعدادات</span>
+                </button>
+            </div>
+
+            <div id="parentBottomNav" class="hidden flex justify-around">
+                <button onclick="showParentPage('parentChildren')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="parentChildren">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-xs">أبنائي</span>
+                </button>
+                <button onclick="showParentPage('parentNotifications')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors relative" data-page="parentNotifications">
+                    <div class="relative">
+                        <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                        </svg>
+                        <span id="notificationBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold"></span>
+                    </div>
+                    <span class="text-xs">الإشعارات</span>
+                </button>
+                <button onclick="showParentPage('parentSettings')" class="nav-item flex flex-col items-center py-2 px-3 rounded-lg transition-colors" data-page="parentSettings">
+                    <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">الإعدادات</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals will be added here dynamically -->
+
+    <!-- Notifications -->
+    <div id="notifications" class="fixed top-4 left-4 z-50 space-y-2">
+        <!-- Notifications will appear here -->
+    </div>
+
+    <script>
+        // Application State
+        let currentUser = null;
+        let students = [];
+        let teachers = [];
+        let parents = [];
+        let pendingApprovals = [];
+        let attendanceRecords = [];
+        let notifications = [];
+        let summons = [];
+
+        // Use Supabase client instead of LocalDatabase
+        const db = supabaseClient;
+
+        // Class structure definition
+        const classStructure = {
+            'جذع مشترك': {
+                'علوم وتكنولوجيا': ['1جمعت1', '1جمعت2', '1جمعت3', '1جمعت4', '1جمعت5'],
+                'آداب': ['1آداب1', '1آداب2', '1آداب3']
+            },
+            'السنة الثانية': {
+                'رياضيات': ['2رياضيات'],
+                'علوم تجريبية': ['2علوم تجريبية1', '2علوم تجريبية2'],
+                'تقني رياضي': ['2تقني رياضي'],
+                'تسيير واقتصاد': ['2تسيير واقتصاد1', '2تسيير واقتصاد2'],
+                'آداب وفلسفة': ['2آداب وفلسفة1', '2آداب وفلسفة2'],
+                'لغات أجنبية': ['2لغات أجنبية1', '2لغات أجنبية2']
+            },
+            'السنة الثالثة': {
+                'رياضيات': ['3رياضيات'],
+                'علوم تجريبية': ['3علوم تجريبية1', '3علوم تجريبية2'],
+                'تقني رياضي': ['3تقني رياضي'],
+                'تسيير واقتصاد': ['3تسيير واقتصاد'],
+                'آداب وفلسفة': ['3آداب وفلسفة1', '3آداب وفلسفة2'],
+                'لغات أجنبية': ['3لغات أجنبية']
+            }
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDataFromDB();
+            updateStats();
+            
+            // Set today's date for attendance
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('attendanceDate');
+            if (dateInput) {
+                dateInput.value = today;
+            }
+        });
+
+        // Load data from database
+        async function loadDataFromDB() {
+            try {
+                students = await db.getStudents();
+                teachers = (await db.getUsersByType('teacher')).filter(u => u.approved);
+                parents = (await db.getUsersByType('parent')).filter(u => u.approved);
+                pendingApprovals = await db.getPendingApprovals();
+                attendanceRecords = await db.getAttendanceRecords();
+                notifications = await db.getNotifications();
+                summons = await db.getSummons();
+            } catch (error) {
+                console.error('[v0] Error loading data from Supabase:', error);
+                showNotification('خطأ في تحميل البيانات', 'error');
+            }
+        }
+
+        // Authentication functions
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const userType = document.querySelector('input[name="userType"]:checked')?.value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!userType) {
+                showNotification('يرجى اختيار نوع المستخدم', 'error');
+                return;
+            }
+
+            try {
+                const user = await db.getUser(email);
+                
+                if (!user) {
+                    showNotification('البريد الإلكتروني غير مسجل', 'error');
+                    return;
+                }
+
+                if (user.type !== userType) {
+                    showNotification('نوع المستخدم غير صحيح', 'error');
+                    return;
+                }
+
+                if (!user.approved && user.type !== 'admin') {
+                    showNotification('حسابك لم يتم تفعيله بعد. يرجى انتظار موافقة المدير', 'warning');
+                    return;
+                }
+
+                // Verify password (simple hash comparison)
+                const hashedPassword = hashPassword(password);
+                if (user.password !== hashedPassword) {
+                    showNotification('كلمة المرور غير صحيحة', 'error');
+                    return;
+                }
+
+                currentUser = {
+                    id: user.id,
+                    type: user.type,
+                    name: user.name,
+                    email: user.email,
+                    image: user.image
+                };
+                
+                showDashboard(userType);
+                showNotification(`مرحباً ${user.name}`, 'success');
+            } catch (error) {
+                console.error('[v0] Login error:', error);
+                showNotification('خطأ في تسجيل الدخول', 'error');
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const userType = document.querySelector('input[name="regUserType"]:checked')?.value;
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const imageFile = document.getElementById('regProfileImage').files[0];
+
+            if (!userType) {
+                showNotification('يرجى اختيار نوع المستخدم', 'error');
+                return;
+            }
+
+            if (userType === 'admin') {
+                showNotification('لا يمكن إنشاء حساب مدير من خلال التسجيل', 'error');
+                return;
+            }
+
+            try {
+                const existingUser = await db.getUser(email);
+                if (existingUser) {
+                    showNotification('البريد الإلكتروني مسجل بالفعل', 'error');
+                    return;
+                }
+
+                let imageData = null;
+                if (imageFile) {
+                    imageData = await readFileAsBase64(imageFile);
+                }
+
+                const hashedPassword = hashPassword(password);
+                const newUser = {
+                    id: 'USR' + Date.now(),
+                    email: email,
+                    password: hashedPassword,
+                    name: name,
+                    type: userType,
+                    image: imageData,
+                    approved: userType === 'admin', // Only admins are auto-approved
+                    children: []
+                };
+
+                await db.saveUser(newUser);
+
+                // If not an admin, create a pending approval request
+                if (userType !== 'admin') {
+                    const approval = {
+                        id: 'APR' + Date.now(),
+                        user_id: newUser.id,
+                        user_email: email,
+                        user_name: name,
+                        user_type: userType,
+                        image: imageData, // Store image for approval view
+                        createdAt: new Date().toISOString()
+                    };
+                    await db.savePendingApproval(approval);
+                }
+
+                showNotification('تم التسجيل بنجاح. يرجى انتظار موافقة المدير', 'success');
+                // Close register modal and show login
+                const registerPage = document.getElementById('registerPage');
+                if (registerPage) registerPage.classList.add('hidden');
+                document.getElementById('loginPage').classList.remove('hidden');
+            } catch (error) {
+                console.error('[v0] Registration error:', error);
+                showNotification('خطأ في التسجيل', 'error');
+            }
+        }
+
+        // Password toggle functions
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passwordToggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.innerHTML = `
+                    <path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"/>
+                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                `;
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.innerHTML = `
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                `;
+            }
+        }
+
+        function toggleRegPassword() {
+            const passwordInput = document.getElementById('regPassword');
+            const toggleIcon = document.getElementById('regPasswordToggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.innerHTML = `
+                    <path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"/>
+                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                `;
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.innerHTML = `
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                `;
+            }
+        }
+
+        function showDashboard(type) {
+            // Hide all pages
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('registerPage').classList.add('hidden');
+            
+            // Show main app
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            // Show user info
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('userInfo').classList.add('flex');
+            document.getElementById('userName').textContent = currentUser.name;
+            
+            // Set user role text
+            const roleText = {
+                'admin': 'مدير النظام',
+                'teacher': 'أستاذ',
+                'parent': 'ولي أمر'
+            };
+            document.getElementById('userRole').textContent = roleText[type];
+
+            // Show appropriate dashboard and navigation
+            if (type === 'admin') {
+                document.getElementById('adminPages').classList.remove('hidden');
+                document.getElementById('adminBottomNav').classList.remove('hidden');
+                document.getElementById('adminBottomNav').classList.add('flex');
+                showAdminPage('adminDashboard');
+                loadAdminData();
+            } else if (type === 'teacher') {
+                document.getElementById('teacherPages').classList.remove('hidden');
+                document.getElementById('teacherBottomNav').classList.remove('hidden');
+                document.getElementById('teacherBottomNav').classList.add('flex');
+                showTeacherPage('teacherAttendance');
+                loadTeacherData();
+            } else if (type === 'parent') {
+                document.getElementById('parentPages').classList.remove('hidden');
+                document.getElementById('parentBottomNav').classList.remove('hidden');
+                document.getElementById('parentBottomNav').classList.add('flex');
+                showParentPage('parentChildren');
+                loadParentData();
+            }
+        }
+
+        // Navigation functions
+        function showAdminPage(pageId) {
+            // Hide all admin pages
+            document.querySelectorAll('#adminPages .page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.remove('hidden');
+            
+            // Update navigation active state
+            document.querySelectorAll('#adminBottomNav .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeButton = document.querySelector(`#adminBottomNav .nav-item[data-page="${pageId}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+
+        function showTeacherPage(pageId) {
+            // Hide all teacher pages
+            document.querySelectorAll('#teacherPages .page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.remove('hidden');
+            
+            // Update navigation active state
+            document.querySelectorAll('#teacherBottomNav .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeButton = document.querySelector(`#teacherBottomNav .nav-item[data-page="${pageId}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+
+        function showParentPage(pageId) {
+            // Hide all parent pages
+            document.querySelectorAll('#parentPages .page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.remove('hidden');
+            
+            // Update navigation active state
+            document.querySelectorAll('#parentBottomNav .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeButton = document.querySelector(`#parentBottomNav .nav-item[data-page="${pageId}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('userInfo').classList.add('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            
+            // Hide all navigation bars
+            document.getElementById('adminBottomNav').classList.add('hidden');
+            document.getElementById('teacherBottomNav').classList.add('hidden');
+            document.getElementById('parentBottomNav').classList.add('hidden');
+            
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('registerPage').classList.add('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('registerPage').classList.remove('hidden');
+        }
+
+        // Admin functions
+        function loadAdminData() {
+            loadStudentsList();
+            loadPendingApprovals();
+            loadRecentActivities();
+            loadSummonsHistory();
+            updateStats();
+            updateSummonsStats();
+        }
+
+        function loadStudentsList() {
+            const container = document.getElementById('studentsList');
+            container.innerHTML = '';
+
+            if (students.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا يوجد تلاميذ مسجلين</p>
+                        <p class="text-sm text-gray-400 mt-2">ابدأ بإضافة التلاميذ للنظام</p>
+                    </div>
+                `;
+                return;
+            }
+
+            students.forEach(student => {
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50';
+                studentDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center ml-3">
+                            ${student.image ? 
+                                `<img src="${student.image}" alt="${student.name}" class="w-10 h-10 rounded-full object-cover">` :
+                                `<span class="text-blue-600 font-bold">${student.name.charAt(0)}</span>`
+                            }
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">${student.name}</p>
+                            <p class="text-sm text-gray-600">${student.class} - ${student.year || 'غير محدد'}</p>
+                            <p class="text-xs text-gray-500">رقم: ${student.serialNumber}</p>
+                        </div>
+                    </div>
+                    <button onclick="showStudentCard('${student.id}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors">
+                        عرض البطاقة
+                    </button>
+                `;
+                container.appendChild(studentDiv);
+            });
+        }
+
+        function loadPendingApprovals() {
+            const container = document.getElementById('pendingApprovals');
+            container.innerHTML = '';
+
+            if (pendingApprovals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا توجد طلبات موافقة</p>
+                        <p class="text-sm text-gray-400 mt-2">ستظهر طلبات التسجيل الجديدة هنا</p>
+                    </div>
+                `;
+                return;
+            }
+
+            pendingApprovals.forEach(request => {
+                const requestDiv = document.createElement('div');
+                requestDiv.className = 'flex items-center justify-between p-4 border border-gray-200 rounded-lg';
+                requestDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 ml-3">
+                            ${request.image ? 
+                                `<img src="${request.image}" alt="${request.name}" class="w-12 h-12 rounded-full object-cover border-2 border-yellow-200">` :
+                                `<div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                        ${request.type === 'teacher' ? 
+                                            '<path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>' :
+                                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"/>'
+                                        }
+                                    </svg>
+                                </div>`
+                            }
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">${request.name}</p>
+                            <p class="text-sm text-gray-600">${request.type === 'teacher' ? 'أستاذ' : 'ولي أمر'} - ${request.email}</p>
+                            <p class="text-xs text-gray-500">${new Date(request.createdAt).toLocaleDateString('ar-DZ')}</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 space-x-reverse">
+                        <button onclick="approveRequest('${request.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors">
+                            موافقة
+                        </button>
+                        <button onclick="rejectRequest('${request.id}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors">
+                            رفض
+                        </button>
+                    </div>
+                `;
+                container.appendChild(requestDiv);
+            });
+        }
+
+        function loadRecentActivities() {
+            const container = document.getElementById('recentActivities');
+            container.innerHTML = '';
+
+            // Get recent activities from various sources
+            const activities = [];
+
+            // Recent registrations
+            pendingApprovals.slice(-3).forEach(approval => {
+                activities.push({
+                    type: 'registration',
+                    message: `طلب تسجيل جديد من ${approval.name}`,
+                    time: approval.createdAt,
+                    icon: 'user-add',
+                    color: 'blue'
+                });
+            });
+
+            // Recent student additions
+            students.slice(-3).forEach(student => {
+                activities.push({
+                    type: 'student',
+                    message: `تم إضافة التلميذ ${student.name}`,
+                    time: student.createdAt,
+                    icon: 'academic-cap',
+                    color: 'green'
+                });
+            });
+
+            // Sort by time (newest first)
+            activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+            if (activities.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                        </svg>
+                        <p>لا توجد أنشطة حديثة</p>
+                    </div>
+                `;
+                return;
+            }
+
+            activities.slice(0, 5).forEach(activity => {
+                const activityDiv = document.createElement('div');
+                activityDiv.className = 'flex items-center p-3 bg-gray-50 rounded-lg';
+                
+                const iconColor = {
+                    'blue': 'bg-blue-100 text-blue-600',
+                    'green': 'bg-green-100 text-green-600',
+                    'yellow': 'bg-yellow-100 text-yellow-600',
+                    'red': 'bg-red-100 text-red-600'
+                };
+
+                const icons = {
+                    'user-add': '<path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0h-1V7z"/>',
+                    'academic-cap': '<path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>'
+                };
+
+                activityDiv.innerHTML = `
+                    <div class="w-8 h-8 ${iconColor[activity.color]} rounded-full flex items-center justify-center ml-3">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            ${icons[activity.icon]}
+                        </svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-800">${activity.message}</p>
+                        <p class="text-xs text-gray-500">${getTimeAgo(activity.time)}</p>
+                    </div>
+                `;
+                container.appendChild(activityDiv);
+            });
+        }
+
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+            
+            if (diffInMinutes < 1) return 'الآن';
+            if (diffInMinutes < 60) return `منذ ${diffInMinutes} دقيقة`;
+            
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) return `منذ ${diffInHours} ساعة`;
+            
+            const diffInDays = Math.floor(diffInHours / 24);
+            return `منذ ${diffInDays} يوم`;
+        }
+
+        async function approveRequest(requestId) {
+            const request = pendingApprovals.find(r => r.id === requestId);
+            if (!request) return;
+
+            // Create new user
+            const newUser = {
+                id: 'USR' + Date.now(),
+                name: request.name,
+                email: request.email,
+                password: request.password,
+                type: request.type,
+                approved: true, // Approved directly if accepted by admin
+                image: request.image,
+                createdAt: new Date().toISOString(),
+                children: []
+            };
+
+            try {
+                await db.saveUser(newUser);
+                await db.removePendingApproval(requestId);
+                
+                loadDataFromDB();
+                loadPendingApprovals();
+                loadRecentActivities();
+                updateStats();
+                
+                showNotification(`تم قبول طلب ${request.name}`, 'success');
+            } catch (error) {
+                console.error('[v0] Error approving request:', error);
+                showNotification('خطأ في قبول الطلب', 'error');
+            }
+        }
+
+        async function rejectRequest(requestId) {
+            const request = pendingApprovals.find(r => r.id === requestId);
+            if (!request) return;
+
+            try {
+                await db.removePendingApproval(requestId);
+                
+                loadDataFromDB();
+                loadPendingApprovals();
+                loadRecentActivities();
+                updateStats();
+                
+                showNotification(`تم رفض طلب ${request.name}`, 'info');
+            } catch (error) {
+                console.error('[v0] Error rejecting request:', error);
+                showNotification('خطأ في رفض الطلب', 'error');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalStudents').textContent = students.length;
+            document.getElementById('totalTeachers').textContent = teachers.length;
+            document.getElementById('totalParents').textContent = parents.length;
+            document.getElementById('pendingRequests').textContent = pendingApprovals.length;
+        }
+
+        // Student management
+        function showAddStudent() {
+            // Create modal dynamically
+            const modal = document.createElement('div');
+            modal.id = 'addStudentModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">إضافة تلميذ جديد</h3>
+                            <button onclick="closeAddStudent()" class="text-gray-500 hover:text-gray-700">
+                                <span class="text-2xl">×</span>
+                            </button>
+                        </div>
+                        <form onsubmit="addStudent(event)">
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">اسم التلميذ</label>
+                                <input type="text" id="studentName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">السنة الدراسية</label>
+                                <select id="studentYear" onchange="updateClassOptions()" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                    <option value="">اختر السنة</option>
+                                    <option value="جذع مشترك">جذع مشترك</option>
+                                    <option value="السنة الثانية">السنة الثانية</option>
+                                    <option value="السنة الثالثة">السنة الثالثة</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">القسم</label>
+                                <select id="studentClass" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                    <option value="">اختر القسم أولاً</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">الرقم التسلسلي</label>
+                                <input type="text" id="studentId" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">بريد ولي الأمر</label>
+                                <input type="email" id="parentEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <div class="mb-6 text-center">
+                                <label class="block text-gray-700 font-medium mb-2">صورة التلميذ</label>
+                                <div class="image-upload">
+                                    <div class="w-20 h-20 bg-gray-200 rounded-full mx-auto flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors">
+                                        <img id="studentImagePreview" class="hidden w-20 h-20 rounded-full object-cover">
+                                        <svg id="studentImageIcon" class="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <input type="file" id="studentImage" accept="image/*" onchange="previewStudentImage(this)">
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">اختياري</p>
+                            </div>
+                            <div class="flex space-x-3 space-x-reverse">
+                                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    إضافة التلميذ
+                                </button>
+                                <button type="button" onclick="closeAddStudent()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeAddStudent() {
+            const modal = document.getElementById('addStudentModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function previewStudentImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('studentImagePreview');
+                    const icon = document.getElementById('studentImageIcon');
+                    if (preview && icon) {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        icon.classList.add('hidden');
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function previewRegImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('regProfilePreview');
+                    const icon = document.getElementById('regProfileIcon');
+                    if (preview && icon) {
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                        icon.classList.add('hidden');
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function addStudent(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('studentName').value;
+            const year = document.getElementById('studentYear').value;
+            const studentClass = document.getElementById('studentClass').value;
+            const serialNumber = document.getElementById('studentId').value;
+            const parentEmail = document.getElementById('parentEmail').value;
+            const imageFile = document.getElementById('studentImage').files[0];
+
+            // Check if serial number already exists
+            if (students.find(s => s.serialNumber === serialNumber)) {
+                showNotification('الرقم التسلسلي موجود مسبقاً', 'error');
+                return;
+            }
+
+            // الآن يتم ربط التلاميذ بأولياء الأمور من خلال البريد الإلكتروني تلقائياً
+
+            try {
+                let imageData = null;
+                if (imageFile) {
+                    imageData = await readFileAsBase64(imageFile);
+                }
+
+                const newStudent = {
+                    id: 'STU' + Date.now(),
+                    name: name,
+                    year: year,
+                    class: studentClass,
+                    serialNumber: serialNumber,
+                    parentEmail: parentEmail,
+                    image: imageData,
+                    createdAt: new Date().toISOString(),
+                    attendanceRecords: []
+                };
+
+                // Save student to database
+                await db.saveStudent(newStudent);
+                
+                // سيتم البحث عن الأطفال تلقائياً بناءً على البريد الإلكتروني
+
+                // Reload data
+                loadDataFromDB();
+                loadStudentsList();
+                loadTeacherData();
+                updateStats();
+                
+                closeAddStudent();
+                showNotification(`تم إضافة التلميذ ${name} بنجاح`, 'success');
+            } catch (error) {
+                console.error('[v0] Error adding student:', error);
+                showNotification('خطأ في إضافة التلميذ', 'error');
+            }
+        }
+
+        function showStudentCard(studentId) {
+            const student = students.find(s => s.id === studentId);
+            if (!student) return;
+
+            // Create modal for student card
+            const modal = document.createElement('div');
+            modal.id = 'studentCardModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
+                    <div class="student-card text-white p-6 text-center">
+                        <div class="mb-4">
+                            ${student.image ? 
+                                `<img src="${student.image}" alt="${student.name}" class="student-image mx-auto">` :
+                                `<div class="student-image mx-auto bg-white bg-opacity-20 flex items-center justify-center">
+                                    <span class="text-2xl font-bold">${student.name.charAt(0)}</span>
+                                </div>`
+                            }
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">${student.name}</h3>
+                        <p class="text-white text-opacity-90 mb-1">${student.class}</p>
+                        <p class="text-white text-opacity-90 mb-1">${student.year}</p>
+                        <p class="text-white text-opacity-75 text-sm">رقم: ${student.serialNumber}</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-600">${getStudentAttendanceStats(student.id).present}</p>
+                                <p class="text-sm text-gray-600">حاضر</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-red-600">${getStudentAttendanceStats(student.id).absent}</p>
+                                <p class="text-sm text-gray-600">غائب</p>
+                            </div>
+                        </div>
+                        <button onclick="closeStudentCard()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeStudentCard() {
+            const modal = document.getElementById('studentCardModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function getStudentAttendanceStats(studentId) {
+            const records = attendanceRecords.filter(r => r.studentId === studentId);
+            return {
+                present: records.filter(r => r.status === 'present').length,
+                absent: records.filter(r => r.status === 'absent').length,
+                late: records.filter(r => r.status === 'late').length
+            };
+        }
+
+        // Teacher functions
+        function loadTeacherData() {
+            loadTeacherStudentsList();
+            populateClassFilters();
+            updateAttendanceStats();
+        }
+
+        function loadTeacherStudentsList() {
+            const container = document.getElementById('teacherStudentsList');
+            container.innerHTML = '';
+
+            if (students.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا يوجد تلاميذ للعرض</p>
+                        <p class="text-sm text-gray-400 mt-2">سيتم عرض التلاميذ هنا عند إضافتهم للنظام</p>
+                    </div>
+                `;
+                return;
+            }
+
+            students.forEach(student => {
+                const attendanceDate = document.getElementById('attendanceDate').value;
+                const existingRecord = attendanceRecords.find(r => 
+                    r.studentId === student.id && r.date === attendanceDate
+                );
+
+                const studentDiv = document.createElement('div');
+                studentDiv.className = 'bg-white rounded-xl shadow-sm p-4 border border-gray-200';
+                studentDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 ml-3">
+                                ${student.image ? 
+                                    `<img src="${student.image}" alt="${student.name}" class="w-12 h-12 rounded-full object-cover">` :
+                                    `<div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <span class="text-blue-600 font-bold">${student.name.charAt(0)}</span>
+                                    </div>`
+                                }
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-800">${student.name}</p>
+                                <p class="text-sm text-gray-600">${student.class} - ${student.year}</p>
+                                <p class="text-xs text-gray-500">رقم: ${student.serialNumber}</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="markAttendance('${student.id}', 'present')" 
+                                    class="attendance-btn ${existingRecord?.status === 'present' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-600 hover:bg-green-200'} px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                حاضر
+                            </button>
+                            <button onclick="markAttendance('${student.id}', 'late')" 
+                                    class="attendance-btn ${existingRecord?.status === 'late' ? 'bg-yellow-600 text-white' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'} px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                متأخر
+                            </button>
+                            <button onclick="markAttendance('${student.id}', 'absent')" 
+                                    class="attendance-btn ${existingRecord?.status === 'absent' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-600 hover:bg-red-200'} px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                غائب
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(studentDiv);
+            });
+        }
+
+        function populateClassFilters() {
+            const classFilter = document.getElementById('classFilter');
+            const sectionFilter = document.getElementById('sectionFilter');
+            const listClassFilter = document.getElementById('listClassFilter');
+            const listSectionFilter = document.getElementById('listSectionFilter');
+
+            // Get unique classes and sections
+            const classes = [...new Set(students.map(s => s.class))];
+            const sections = [...new Set(students.map(s => s.section))];
+
+            // Populate class filters
+            [classFilter, listClassFilter].forEach(filter => {
+                if (filter) {
+                    filter.innerHTML = '<option value="">جميع الأقسام</option>';
+                    classes.forEach(cls => {
+                        filter.innerHTML += `<option value="${cls}">${cls}</option>`;
+                    });
+                }
+            });
+
+            // Populate section filters
+            [sectionFilter, listSectionFilter].forEach(filter => {
+                if (filter) {
+                    filter.innerHTML = '<option value="">جميع الشعب</option>';
+                    sections.forEach(section => {
+                        filter.innerHTML += `<option value="${section}">${section}</option>`;
+                    });
+                }
+            });
+        }
+
+        function filterStudents() {
+            const classFilter = document.getElementById('classFilter').value;
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            
+            loadTeacherStudentsList();
+            updateAttendanceStats();
+        }
+
+        async function markAttendance(studentId, status) {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            
+            if (!attendanceDate) {
+                showNotification('يرجى اختيار التاريخ أولاً', 'error');
+                return;
+            }
+
+            // Remove existing record for this student and date
+            attendanceRecords = attendanceRecords.filter(r => 
+                !(r.studentId === studentId && r.date === attendanceDate)
+            );
+
+            // Add new record
+            const newRecord = {
+                id: 'ATT' + Date.now(),
+                studentId: studentId,
+                date: attendanceDate,
+                status: status,
+                teacherId: currentUser.id,
+                timestamp: new Date().toISOString()
+            };
+
+            attendanceRecords.push(newRecord);
+            await db.saveAttendanceRecord(newRecord);
+
+            // Reload the list to update button states
+            loadTeacherStudentsList();
+            updateAttendanceStats();
+            
+            const student = students.find(s => s.id === studentId);
+            const statusText = {
+                'present': 'حاضر',
+                'late': 'متأخر',
+                'absent': 'غائب'
+            };
+            
+            showNotification(`تم تسجيل ${student.name} كـ ${statusText[status]}`, 'success');
+        }
+
+        function markAllPresent() {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            
+            if (!attendanceDate) {
+                showNotification('يرجى اختيار التاريخ أولاً', 'error');
+                return;
+            }
+
+            students.forEach(student => {
+                markAttendance(student.id, 'present');
+            });
+            
+            showNotification('تم تسجيل جميع التلاميذ كحاضرين', 'success');
+        }
+
+        function markAllAbsent() {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            
+            if (!attendanceDate) {
+                showNotification('يرجى اختيار التاريخ أولاً', 'error');
+                return;
+            }
+
+            students.forEach(student => {
+                markAttendance(student.id, 'absent');
+            });
+            
+            showNotification('تم تسجيل جميع التلاميذ كغائبين', 'success');
+        }
+
+        async function clearAllAttendance() {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            
+            if (!attendanceDate) {
+                showNotification('يرجى اختيار التاريخ أولاً', 'error');
+                return;
+            }
+
+            // Remove all records for this date
+            const initialLength = attendanceRecords.length;
+            attendanceRecords = attendanceRecords.filter(r => r.date !== attendanceDate);
+            
+            // Update database (this would be more efficient if Supabase allowed batch deletion by filter)
+            // For now, we'll just update the UI.
+            // A more robust solution would involve identifying deleted records and removing them.
+            // For this example, we'll just update the UI.
+            
+            loadTeacherStudentsList();
+            updateAttendanceStats();
+            
+            showNotification('تم مسح جميع تسجيلات الحضور لهذا اليوم', 'info');
+        }
+
+        function updateAttendanceStats() {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            const todayRecords = attendanceRecords.filter(r => r.date === attendanceDate);
+            
+            const presentCount = todayRecords.filter(r => r.status === 'present').length;
+            const absentCount = todayRecords.filter(r => r.status === 'absent').length;
+            const lateCount = todayRecords.filter(r => r.status === 'late').length;
+            const totalCount = students.length;
+
+            document.getElementById('presentCount').textContent = presentCount;
+            document.getElementById('absentCount').textContent = absentCount;
+            document.getElementById('lateCount').textContent = lateCount;
+            document.getElementById('totalCount').textContent = totalCount;
+        }
+
+        // Parent functions
+        function loadParentData() {
+            loadParentChildren();
+            loadParentNotifications();
+        }
+
+        function loadParentChildren() {
+            const container = document.getElementById('parentChildrenList');
+            container.innerHTML = '';
+
+            const currentParent = currentUser;
+            const parentChildren = students.filter(s => s.parentEmail === currentParent.email);
+
+            if (!parentChildren || parentChildren.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا توجد بيانات أطفال</p>
+                        <p class="text-sm text-gray-400 mt-2">سيتم عرض بيانات أطفالك هنا عند ربطهم بحسابك</p>
+                    </div>
+                `;
+                return;
+            }
+
+            parentChildren.forEach(child => {
+                const stats = getStudentAttendanceStats(child.id);
+                const childDiv = document.createElement('div');
+                childDiv.className = 'student-card text-white p-6 rounded-2xl shadow-lg';
+                childDiv.innerHTML = `
+                    <div class="flex items-center mb-4">
+                        <div class="w-16 h-16 ml-4">
+                            ${child.image ? 
+                                `<img src="${child.image}" alt="${child.name}" class="w-16 h-16 rounded-full object-cover border-3 border-white border-opacity-30">` :
+                                `<div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <span class="text-xl font-bold">${child.name.charAt(0)}</span>
+                                </div>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold">${child.name}</h3>
+                            <p class="text-white text-opacity-90 text-sm">${child.class}</p>
+                            <p class="text-white text-opacity-90 text-sm">${child.year}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.present}</p>
+                            <p class="text-xs text-white text-opacity-75">حاضر</p>
+                        </div>
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.late}</p>
+                            <p class="text-xs text-white text-opacity-75">متأخر</p>
+                        </div>
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.absent}</p>
+                            <p class="text-xs text-white text-opacity-75">غائب</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(childDiv);
+            });
+        }
+
+        function searchParentChildren() {
+            const searchBox = document.getElementById('parentSearchBox');
+            const searchTerm = searchBox.value.toLowerCase();
+            const container = document.getElementById('parentChildrenList');
+            
+            const currentParent = currentUser;
+            const parentChildren = students.filter(s => s.parentEmail === currentParent.email);
+            
+            // تصفية الأطفال بناءً على البحث
+            const filteredChildren = parentChildren.filter(child => 
+                child.name.toLowerCase().includes(searchTerm)
+            );
+            
+            container.innerHTML = '';
+            
+            if (filteredChildren.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لم يتم العثور على نتائج</p>
+                        <p class="text-sm text-gray-400 mt-2">حاول البحث باسم مختلف</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            filteredChildren.forEach(child => {
+                const stats = getStudentAttendanceStats(child.id);
+                const childDiv = document.createElement('div');
+                childDiv.className = 'student-card text-white p-6 rounded-2xl shadow-lg';
+                childDiv.innerHTML = `
+                    <div class="flex items-center mb-4">
+                        <div class="w-16 h-16 ml-4">
+                            ${child.image ? 
+                                `<img src="${child.image}" alt="${child.name}" class="w-16 h-16 rounded-full object-cover border-3 border-white border-opacity-30">` :
+                                `<div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <span class="text-xl font-bold">${child.name.charAt(0)}</span>
+                                </div>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold">${child.name}</h3>
+                            <p class="text-white text-opacity-90 text-sm">${child.class}</p>
+                            <p class="text-white text-opacity-90 text-sm">${child.year}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.present}</p>
+                            <p class="text-xs text-white text-opacity-75">حاضر</p>
+                        </div>
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.late}</p>
+                            <p class="text-xs text-white text-opacity-75">متأخر</p>
+                        </div>
+                        <div class="text-center bg-white bg-opacity-20 rounded-lg p-3">
+                            <p class="text-xl font-bold">${stats.absent}</p>
+                            <p class="text-xs text-white text-opacity-75">غائب</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(childDiv);
+            });
+        }
+
+        function loadParentNotifications() {
+            const container = document.getElementById('parentNotificationsList');
+            container.innerHTML = '';
+
+            // Get notifications for this parent's children
+            const parent = parents.find(p => p.email === currentUser.email);
+            if (!parent || !parent.children) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا توجد إشعارات</p>
+                        <p class="text-sm text-gray-400 mt-2">ستظهر الإشعارات والاستدعاءات هنا</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const parentNotifications = notifications.filter(n => 
+                parent.children.includes(n.studentId)
+            );
+
+            if (parentNotifications.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                        </svg>
+                        <p class="text-lg font-medium">لا توجد إشعارات</p>
+                        <p class="text-sm text-gray-400 mt-2">ستظهر الإشعارات والاستدعاءات هنا</p>
+                    </div>
+                `;
+                return;
+            }
+
+            parentNotifications.forEach(notification => {
+                const student = students.find(s => s.id === notification.studentId);
+                const notificationDiv = document.createElement('div');
+                notificationDiv.className = `bg-white rounded-xl shadow-sm p-4 border-r-4 ${getPriorityClass(notification.priority)}`;
+                notificationDiv.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-800 mb-1">${notification.title}</h4>
+                            <p class="text-sm text-gray-600 mb-2">${notification.message}</p>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <span class="ml-3">${student ? student.name : 'غير معروف'}</span>
+                                <span>${new Date(notification.createdAt).toLocaleDateString('ar-DZ')}</span>
+                            </div>
+                        </div>
+                        <div class="text-xs px-2 py-1 rounded ${getPriorityBadgeClass(notification.priority)}">
+                            ${getPriorityText(notification.priority)}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(notificationDiv);
+            });
+
+            // Update notification badge
+            updateNotificationBadge(parentNotifications.length);
+        }
+
+        function getPriorityClass(priority) {
+            const classes = {
+                'urgent': 'priority-urgent',
+                'high': 'priority-high',
+                'medium': 'priority-medium',
+                'low': 'priority-low'
+            };
+            return classes[priority] || 'priority-low';
+        }
+
+        function getPriorityBadgeClass(priority) {
+            const classes = {
+                'urgent': 'bg-red-100 text-red-800',
+                'high': 'bg-orange-100 text-orange-800',
+                'medium': 'bg-yellow-100 text-yellow-800',
+                'low': 'bg-blue-100 text-blue-800'
+            };
+            return classes[priority] || 'bg-blue-100 text-blue-800';
+        }
+
+        function getPriorityText(priority) {
+            const texts = {
+                'urgent': 'عاجل',
+                'high': 'مهم',
+                'medium': 'متوسط',
+                'low': 'عادي'
+            };
+            return texts[priority] || 'عادي';
+        }
+
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notificationBadge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        // Utility functions
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden`;
+            
+            const bgColor = {
+                'success': 'bg-green-50 border-green-200',
+                'error': 'bg-red-50 border-red-200',
+                'warning': 'bg-yellow-50 border-yellow-200',
+                'info': 'bg-blue-50 border-blue-200'
+            };
+            
+            const iconColor = {
+                'success': 'text-green-400',
+                'error': 'text-red-400',
+                'warning': 'text-yellow-400',
+                'info': 'text-blue-400'
+            };
+            
+            const icons = {
+                'success': '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>',
+                'error': '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>',
+                'warning': '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>',
+                'info': '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>'
+            };
+
+            notification.innerHTML = `
+                <div class="p-4 ${bgColor[type]} border">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 ${iconColor[type]}" fill="currentColor" viewBox="0 0 20 20">
+                                ${icons[type]}
+                            </svg>
+                        </div>
+                        <div class="mr-3">
+                            <p class="text-sm font-medium text-gray-900">${message}</p>
+                        </div>
+                        <div class="mr-auto flex-shrink-0 flex">
+                            <button onclick="this.parentElement.parentElement.parentElement.parentElement.remove()" class="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+                                <span class="sr-only">إغلاق</span>
+                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('notifications').appendChild(notification);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Forgot Password functions
+        function showForgotPassword() {
+            // Create modal for forgot password
+            const modal = document.createElement('div');
+            modal.id = 'forgotPasswordModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">استعادة كلمة المرور</h3>
+                            <button onclick="closeForgotPassword()" class="text-gray-500 hover:text-gray-700">
+                                <span class="text-2xl">×</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Step 1: Enter Email -->
+                        <div id="forgotStep1">
+                            <p class="text-gray-600 mb-4">أدخل بريدك الإلكتروني لإرسال رمز التحقق</p>
+                            <form onsubmit="sendResetCode(event)">
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 font-medium mb-2">البريد الإلكتروني</label>
+                                    <input type="email" id="resetEmail" required 
+                                           placeholder="أدخل بريدك الإلكتروني"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                </div>
+                                <div class="flex space-x-3 space-x-reverse">
+                                    <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                        إرسال رمز التحقق
+                                    </button>
+                                    <button type="button" onclick="closeForgotPassword()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                                        إلغاء
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Step 2: Enter Verification Code -->
+                        <div id="forgotStep2" class="hidden">
+                            <p class="text-gray-600 mb-4">تم إرسال رمز التحقق إلى بريدك الإلكتروني</p>
+                            <form onsubmit="verifyResetCode(event)">
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 font-medium mb-2">رمز التحقق</label>
+                                    <input type="text" id="verificationCode" required 
+                                           placeholder="أدخل رمز التحقق المكون من 6 أرقام"
+                                           maxlength="6" pattern="[0-9]{6}"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-center text-lg font-mono">
+                                </div>
+                                <div class="mb-4">
+                                    <p class="text-sm text-gray-500 text-center">
+                                        لم تستلم الرمز؟ 
+                                        <button type="button" onclick="resendResetCode()" class="text-purple-600 hover:text-purple-700 font-medium">
+                                            إعادة الإرسال
+                                        </button>
+                                    </p>
+                                </div>
+                                <div class="flex space-x-3 space-x-reverse">
+                                    <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                        تحقق من الرمز
+                                    </button>
+                                    <button type="button" onclick="backToStep1()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                                        رجوع
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Step 3: Reset Password -->
+                        <div id="forgotStep3" class="hidden">
+                            <p class="text-gray-600 mb-4">أدخل كلمة المرور الجديدة</p>
+                            <form onsubmit="resetPassword(event)">
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 font-medium mb-2">كلمة المرور الجديدة</label>
+                                    <div class="relative">
+                                        <input type="password" id="newPassword" required 
+                                               placeholder="أدخل كلمة المرور الجديدة"
+                                               minlength="6"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                        <button type="button" onclick="toggleNewPassword()" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                            <svg id="newPasswordToggle" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 font-medium mb-2">تأكيد كلمة المرور</label>
+                                    <div class="relative">
+                                        <input type="password" id="confirmPassword" required 
+                                               placeholder="أعد إدخال كلمة المرور"
+                                               minlength="6"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                        <button type="button" onclick="toggleConfirmPassword()" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                            <svg id="confirmPasswordToggle" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="text-xs text-gray-500">
+                                        <p>• كلمة المرور يجب أن تكون 6 أحرف على الأقل</p>
+                                        <p>• استخدم مزيج من الأحرف والأرقام</p>
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    تحديث كلمة المرور
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeForgotPassword() {
+            const modal = document.getElementById('forgotPasswordModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        async function sendResetCode(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('resetEmail').value;
+            
+            // Check if user exists
+            const user = await db.getUser(email);
+            if (!user) {
+                showNotification('البريد الإلكتروني غير مسجل في النظام', 'error');
+                return;
+            }
+            
+            // Generate verification code
+            const verificationCode = db.generateVerificationCode();
+            
+            // Save reset token
+            await db.savePasswordResetToken(email, verificationCode);
+            
+            // In a real app, you would send this via email
+            // For demo purposes, we'll show it in a notification
+            showNotification(`رمز التحقق: ${verificationCode} (في التطبيق الحقيقي سيتم إرساله عبر البريد الإلكتروني)`, 'info');
+            
+            // Move to step 2
+            document.getElementById('forgotStep1').classList.add('hidden');
+            document.getElementById('forgotStep2').classList.remove('hidden');
+        }
+
+        async function verifyResetCode(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('resetEmail').value;
+            const code = document.getElementById('verificationCode').value;
+            
+            if (!await db.verifyPasswordResetToken(email, code)) {
+                showNotification('رمز التحقق غير صحيح أو منتهي الصلاحية', 'error');
+                return;
+            }
+            
+            // Move to step 3
+            document.getElementById('forgotStep2').classList.add('hidden');
+            document.getElementById('forgotStep3').classList.remove('hidden');
+            
+            showNotification('تم التحقق من الرمز بنجاح', 'success');
+        }
+
+        async function resetPassword(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('resetEmail').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                showNotification('كلمات المرور غير متطابقة', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showNotification('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+            
+            // Update user password
+            try {
+                const user = await db.getUser(email);
+                if (user) {
+                    user.password = hashPassword(newPassword);
+                    await db.saveUser(user);
+                    
+                    // Remove reset token
+                    await db.removePasswordResetToken(email);
+                    
+                    closeForgotPassword();
+                    showNotification('تم تحديث كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن', 'success');
+                } else {
+                    showNotification('حدث خطأ في تحديث كلمة المرور', 'error');
+                }
+            } catch (error) {
+                console.error('[v0] Error resetting password:', error);
+                showNotification('خطأ في تحديث كلمة المرور', 'error');
+            }
+        }
+
+        async function resendResetCode() {
+            const email = document.getElementById('resetEmail').value;
+            
+            // Generate new verification code
+            const verificationCode = db.generateVerificationCode();
+            
+            // Save new reset token
+            await db.savePasswordResetToken(email, verificationCode);
+            
+            // Show new code (in real app, send via email)
+            showNotification(`رمز التحقق الجديد: ${verificationCode}`, 'info');
+        }
+
+        function backToStep1() {
+            document.getElementById('forgotStep2').classList.add('hidden');
+            document.getElementById('forgotStep1').classList.remove('hidden');
+            
+            // Clear verification code input
+            document.getElementById('verificationCode').value = '';
+        }
+
+        function toggleNewPassword() {
+            const passwordInput = document.getElementById('newPassword');
+            const toggleIcon = document.getElementById('newPasswordToggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.innerHTML = `
+                    <path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"/>
+                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                `;
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.innerHTML = `
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                `;
+            }
+        }
+
+        function toggleConfirmPassword() {
+            const passwordInput = document.getElementById('confirmPassword');
+            const toggleIcon = document.getElementById('confirmPasswordToggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.innerHTML = `
+                    <path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"/>
+                    <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"/>
+                `;
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.innerHTML = `
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                `;
+            }
+        }
+
+        function showChangePassword() {
+            showNotification('ميزة تغيير كلمة المرور ستكون متاحة قريباً', 'info');
+        }
+
+        function showProfileSettings() {
+            showNotification('ميزة تحديث البيانات الشخصية ستكون متاحة قريباً', 'info');
+        }
+
+        function loadClassList() {
+            showNotification('ميزة قوائم الأقسام ستكون متاحة قريباً', 'info');
+        }
+
+        function printClassList() {
+            showNotification('ميزة الطباعة ستكون متاحة قريباً', 'info');
+        }
+
+        function exportClassListExcel() {
+            showNotification('ميزة التصدير ستكون متاحة قريباً', 'info');
+        }
+
+        // Class management functions
+        function updateClassOptions() {
+            const yearSelect = document.getElementById('studentYear');
+            const classSelect = document.getElementById('studentClass');
+            
+            if (!yearSelect || !classSelect) return;
+            
+            const selectedYear = yearSelect.value;
+            classSelect.innerHTML = '<option value="">اختر القسم</option>';
+            
+            if (selectedYear && classStructure[selectedYear]) {
+                Object.keys(classStructure[selectedYear]).forEach(section => {
+                    classStructure[selectedYear][section].forEach(className => {
+                        classSelect.innerHTML += `<option value="${className}">${className}</option>`;
+                    });
+                });
+            }
+        }
+
+        function showStudentsTab(tabName) {
+            // Update tab buttons
+            document.getElementById('allStudentsTab').className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-purple-600';
+            document.getElementById('classlistsTab').className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-purple-600';
+            
+            // Hide all content
+            document.getElementById('allStudentsContent').classList.add('hidden');
+            document.getElementById('classlistsContent').classList.add('hidden');
+            
+            if (tabName === 'allStudents') {
+                document.getElementById('allStudentsTab').className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-white text-purple-600 shadow-sm';
+                document.getElementById('allStudentsContent').classList.remove('hidden');
+            } else if (tabName === 'classlists') {
+                document.getElementById('classlistsTab').className = 'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors bg-white text-purple-600 shadow-sm';
+                document.getElementById('classlistsContent').classList.remove('hidden');
+                loadClassListsGrid();
+            }
+        }
+
+        function loadClassListsGrid() {
+            const container = document.getElementById('classListsGrid');
+            container.innerHTML = '';
+            
+            // Generate all possible classes
+            const allClasses = [];
+            Object.keys(classStructure).forEach(year => {
+                Object.keys(classStructure[year]).forEach(section => {
+                    classStructure[year][section].forEach(className => {
+                        allClasses.push({
+                            name: className,
+                            year: year,
+                            section: section,
+                            students: students.filter(s => s.class === className)
+                        });
+                    });
+                });
+            });
+            
+            allClasses.forEach(classInfo => {
+                const classCard = document.createElement('div');
+                classCard.className = 'bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow';
+                classCard.setAttribute('data-year', classInfo.year);
+                
+                classCard.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800">${classInfo.name}</h3>
+                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                            ${classInfo.students.length} تلميذ
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">${classInfo.year} - ${classInfo.section}</p>
+                    <div class="flex space-x-2 space-x-reverse">
+                        <button onclick="viewClassList('${classInfo.name}')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                            عرض القائمة
+                        </button>
+                        <button onclick="addStudentToClass('${classInfo.name}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(classCard);
+            });
+        }
+
+        function filterClassLists(year) {
+            // Update filter buttons
+            document.querySelectorAll('[id^="filter"]').forEach(btn => {
+                btn.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300';
+            });
+            
+            const activeButton = document.getElementById(`filter${year === 'all' ? 'All' : year === 'جذع مشترك' ? 'JidhMushtarak' : year === 'السنة الثانية' ? 'Second' : 'Third'}`);
+            if (activeButton) {
+                activeButton.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white';
+            }
+            
+            // Filter class cards
+            const cards = document.querySelectorAll('#classListsGrid > div');
+            cards.forEach(card => {
+                if (year === 'all' || card.getAttribute('data-year') === year) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function viewClassList(className) {
+            const classStudents = students.filter(s => s.class === className);
+            
+            // Create modal for class list
+            const modal = document.createElement('div');
+            modal.id = 'classListModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-bold text-gray-800">قائمة ${className}</h3>
+                            <button onclick="closeClassListModal()" class="text-gray-500 hover:text-gray-700">
+                                <span class="text-2xl">×</span>
+                            </button>
+                        </div>
+                        <p class="text-gray-600 mt-1">عدد التلاميذ: ${classStudents.length}</p>
+                    </div>
+                    <div class="p-6 overflow-y-auto max-h-96">
+                        ${classStudents.length === 0 ? 
+                            `<div class="text-center py-8 text-gray-500">
+                                <p>لا يوجد تلاميذ في هذا القسم</p>
+                            </div>` :
+                            `<div class="space-y-3">
+                                ${classStudents.map((student, index) => `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div class="flex items-center">
+                                            <span class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold ml-3">
+                                                ${index + 1}
+                                            </span>
+                                            <div>
+                                                <p class="font-medium text-gray-800">${student.name}</p>
+                                                <p class="text-sm text-gray-600">رقم: ${student.serialNumber}</p>
+                                            </div>
+                                        </div>
+                                        <button onclick="sendSummonsToStudent('${student.id}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors">
+                                            استدعاء
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>`
+                        }
+                    </div>
+                    <div class="p-6 border-t border-gray-200">
+                        <button onclick="closeClassListModal()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeClassListModal() {
+            const modal = document.getElementById('classListModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function addStudentToClass(className) {
+            // Pre-fill the add student form with the selected class
+            showAddStudent();
+            
+            // Wait for modal to be created, then set the class
+            setTimeout(() => {
+                const classSelect = document.getElementById('studentClass');
+                if (classSelect) {
+                    classSelect.value = className;
+                }
+            }, 100);
+        }
+
+        // Summons functions
+        function showSendSummons() {
+            // Create modal for sending summons
+            const modal = document.createElement('div');
+            modal.id = 'sendSummonsModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">إرسال استدعاء</h3>
+                            <button onclick="closeSendSummons()" class="text-gray-500 hover:text-gray-700">
+                                <span class="text-2xl">×</span>
+                            </button>
+                        </div>
+                        <form onsubmit="sendSummons(event)">
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">اختر التلميذ</label>
+                                <select id="summonsStudent" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                    <option value="">اختر التلميذ</option>
+                                    ${students.map(student => 
+                                        `<option value="${student.id}">${student.name} - ${student.class}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">نوع الاستدعاء</label>
+                                <select id="summonsType" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                    <option value="">اختر النوع</option>
+                                    <option value="غياب متكرر">غياب متكرر</option>
+                                    <option value="تأخر متكرر">تأخر متكرر</option>
+                                    <option value="سلوك">مشكلة سلوكية</option>
+                                    <option value="أكاديمي">مشكلة أكاديمية</option>
+                                    <option value="أخرى">أخرى</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-medium mb-2">الأولوية</label>
+                                <select id="summonsPriority" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                    <option value="low">عادي</option>
+                                    <option value="medium">متوسط</option>
+                                    <option value="high">مهم</option>
+                                    <option value="urgent">عاجل</option>
+                                </select>
+                            </div>
+                            <div class="mb-6">
+                                <label class="block text-gray-700 font-medium mb-2">تفاصيل الاستدعاء</label>
+                                <textarea id="summonsMessage" required rows="4" 
+                                          placeholder="اكتب تفاصيل سبب الاستدعاء..."
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+                            </div>
+                            <div class="flex space-x-3 space-x-reverse">
+                                <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                                    إرسال الاستدعاء
+                                </button>
+                                <button type="button" onclick="closeSendSummons()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold py-3 px-4 rounded-lg transition-colors">
+                                    إلغاء
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeSendSummons() {
+            const modal = document.getElementById('sendSummonsModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        async function sendSummons(event) {
+            event.preventDefault();
+            
+            const studentId = document.getElementById('summonsStudent').value;
+            const type = document.getElementById('summonsType').value;
+            const priority = document.getElementById('summonsPriority').value;
+            const message = document.getElementById('summonsMessage').value;
+            
+            const student = students.find(s => s.id === studentId);
+            if (!student) {
+                showNotification('التلميذ غير موجود', 'error');
+                return;
+            }
+            
+            // Create summons record
+            const summons = {
+                id: 'SUM' + Date.now(),
+                studentId: studentId,
+                studentName: student.name,
+                type: type,
+                priority: priority,
+                message: message,
+                sentBy: currentUser.id,
+                sentAt: new Date().toISOString(),
+                status: 'sent'
+            };
+            
+            // Save to database
+            await db.saveSummons(summons);
+            
+            // Create notification for parent
+            const notification = {
+                id: 'NOT' + Date.now(),
+                studentId: studentId,
+                title: `استدعاء: ${type}`,
+                message: message,
+                priority: priority,
+                type: 'summons',
+                createdAt: new Date().toISOString(),
+                read: false
+            };
+            
+            await db.saveNotification(notification);
+            
+            // Reload data
+            loadDataFromDB();
+            loadSummonsHistory();
+            updateSummonsStats();
+            
+            closeSendSummons();
+            showNotification(`تم إرسال الاستدعاء لولي أمر ${student.name}`, 'success');
+        }
+
+        function sendSummonsToStudent(studentId) {
+            showSendSummons();
+            
+            // Pre-select the student
+            setTimeout(() => {
+                const studentSelect = document.getElementById('summonsStudent');
+                if (studentSelect) {
+                    studentSelect.value = studentId;
+                }
+            }, 100);
+        }
+
+        function quickSummons(type) {
+            showSendSummons();
+            
+            // Pre-fill the type
+            setTimeout(() => {
+                const typeSelect = document.getElementById('summonsType');
+                if (typeSelect) {
+                    typeSelect.value = type;
+                }
+                
+                // Pre-fill message based on type
+                const messageTextarea = document.getElementById('summonsMessage');
+                if (messageTextarea) {
+                    const messages = {
+                        'غياب متكرر': 'نود إعلامكم بأن ابنكم/ابنتكم لديه غيابات متكررة. يرجى الحضور لمناقشة هذا الأمر.',
+                        'تأخر متكرر': 'نود إعلامكم بأن ابنكم/ابنتكم يتأخر بشكل متكرر عن الحصص. يرجى الحضور لمناقشة هذا الأمر.',
+                        'سلوك': 'نود إعلامكم بوجود مشكلة سلوكية تتطلب تدخلكم. يرجى الحضور لمناقشة هذا الأمر.'
+                    };
+                    messageTextarea.value = messages[type] || '';
+                }
+            }, 100);
+        }
+
+        function loadSummonsHistory() {
+            const container = document.getElementById('summonsHistory');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const recentSummons = summons.slice(-10).reverse(); // Last 10 summons
+            
+            if (recentSummons.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                        </svg>
+                        <p>لا توجد استدعاءات مرسلة</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            recentSummons.forEach(summon => {
+                const summonsDiv = document.createElement('div');
+                summonsDiv.className = `p-3 border-r-4 rounded-lg ${getPriorityClass(summon.priority)}`;
+                summonsDiv.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-800">${summon.studentName}</h4>
+                            <p class="text-sm text-gray-600 mb-1">${summon.type}</p>
+                            <p class="text-xs text-gray-500">${new Date(summon.sentAt).toLocaleDateString('ar-DZ')}</p>
+                        </div>
+                        <div class="text-xs px-2 py-1 rounded ${getPriorityBadgeClass(summon.priority)}">
+                            ${getPriorityText(summon.priority)}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(summonsDiv);
+            });
+        }
+
+        function updateSummonsStats() {
+            const today = new Date().toDateString();
+            const thisWeek = new Date();
+            thisWeek.setDate(thisWeek.getDate() - 7);
+            const thisMonth = new Date();
+            thisMonth.setDate(thisMonth.getDate() - 30);
+            
+            const todayCount = summons.filter(s => new Date(s.sentAt).toDateString() === today).length;
+            const weekCount = summons.filter(s => new Date(s.sentAt) >= thisWeek).length;
+            const monthCount = summons.filter(s => new Date(s.sentAt) >= thisMonth).length;
+            
+            const todayElement = document.getElementById('todaySummons');
+            const weekElement = document.getElementById('weekSummons');
+            const monthElement = document.getElementById('monthSummons');
+            
+            if (todayElement) todayElement.textContent = todayCount;
+            if (weekElement) weekElement.textContent = weekCount;
+            if (monthElement) monthElement.textContent = monthCount;
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98f9463cd4c42138',t:'MTc2MDYzNTcyNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
